@@ -6,14 +6,10 @@ module Scenarios::Capsule_6_16
         confine do
           feature(:capsule) &&
             (feature(:capsule).current_minor_version == '6.15' || \
-            ForemanMaintain.upgrade_in_progress == '6.16')
+            ForemanMaintain.upgrade_in_progress)
         end
         instance_eval(&block)
       end
-    end
-
-    def target_version
-      '6.16'
     end
   end
 

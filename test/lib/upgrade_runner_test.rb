@@ -12,16 +12,12 @@ module ForemanMaintain
     end
 
     let(:upgrade_runner) do
-      UpgradeRunner.new('1.15', reporter)
+      UpgradeRunner.new(reporter)
     end
 
     let(:upgrade_runner_with_whitelist) do
-      UpgradeRunner.new('1.15', reporter,
+      UpgradeRunner.new(reporter,
         :whitelist => %w[present-service-is-running service-is-stopped])
-    end
-
-    it 'lists versions available for upgrading, based on available scenarios' do
-      _(UpgradeRunner.available_targets).must_equal ['1.15']
     end
 
     it 'constructs set of scenarios for upgrade' do
@@ -55,29 +51,12 @@ module ForemanMaintain
       original_scenario = upgrade_runner_with_whitelist.scenario(:pre_upgrade_checks)
 
       ForemanMaintain.detector.refresh
-      new_upgrade_runner = UpgradeRunner.new('1.15', reporter)
+      new_upgrade_runner = UpgradeRunner.new(reporter)
       new_upgrade_runner.load
       _(new_upgrade_runner.phase).must_equal :migrations
       restored_scenario = new_upgrade_runner.scenario(:pre_upgrade_checks)
       _(restored_scenario.steps.map { |s| s.execution.status }).
         must_equal(original_scenario.steps.map { |step| step.execution.status })
-    end
-
-    it 'remembers the current target version' do
-      TestHelper.migrations_fail_at = :migrations
-      reporter.input << 'y'
-      upgrade_runner_with_whitelist.storage.data.clear
-      upgrade_runner_with_whitelist.run
-      upgrade_runner_with_whitelist.save
-      _(UpgradeRunner.current_target_version).must_equal '1.15'
-      _(UpgradeRunner.available_targets).must_equal(['1.15'])
-    end
-
-    it 'does not remember the current target version when failed on pre_upgrade_checks ===' do
-      TestHelper.migrations_fail_at = :pre_upgrade_checks
-      upgrade_runner_with_whitelist.run
-      upgrade_runner_with_whitelist.save
-      _(UpgradeRunner.current_target_version).must_be_nil
     end
 
     it 'cleans the state when the upgrade finished successfully' do
@@ -86,10 +65,9 @@ module ForemanMaintain
       upgrade_runner_with_whitelist.run
       upgrade_runner_with_whitelist.save
 
-      new_upgrade_runner = UpgradeRunner.new('1.15', reporter)
+      new_upgrade_runner = UpgradeRunner.new(reporter)
       new_upgrade_runner.load
       _(new_upgrade_runner.phase).must_equal :pre_upgrade_checks
-      _(UpgradeRunner.current_target_version).must_be_nil
     end
 
     it 'does not run the pre_upgrade_checks again when already in pre_migrations phase' do

@@ -9,37 +9,10 @@ module ForemanMaintain
               :post_migrations,
               :post_upgrade_checks].freeze
 
-    class << self
-      include Concerns::Finders
+    attr_reader :tag, :phase
 
-      def available_targets
-        # when some upgrade is in progress, we don't allow upgrade to different version
-        return [current_target_version] if current_target_version
-
-        find_scenarios(:tags => :upgrade_scenario).map(&:target_version).uniq.sort
-      end
-
-      def current_target_version
-        ForemanMaintain.storage[:upgrade_target_version]
-      end
-
-      def current_target_version=(value)
-        ForemanMaintain.storage.update_and_save(:upgrade_target_version => value)
-      end
-
-      def clear_current_target_version
-        ForemanMaintain.storage.update_and_save(:upgrade_target_version => nil)
-      end
-    end
-
-    attr_reader :version, :tag, :phase
-
-    def initialize(version, reporter, options = {})
+    def initialize(reporter, options = {})
       super(reporter, [], options)
-      @version = version
-      scenarios_present = find_scenarios(:tags => :upgrade_scenario).any?(&matching_version_test)
-      raise "Unknown version #{version}" unless scenarios_present
-
       @scenario_cache = {}
       self.phase = :pre_upgrade_checks
     end
@@ -48,20 +21,13 @@ module ForemanMaintain
       return @scenario_cache[phase] if @scenario_cache.key?(phase)
 
       condition = { :tags => [:upgrade_scenario, phase] }
-      matching_scenarios = find_scenarios(condition).select(&matching_version_test)
+      matching_scenarios = find_scenarios(condition)
       raise "Too many scenarios match #{condition.inspect}" if matching_scenarios.size > 1
 
       @scenario_cache[phase] = matching_scenarios.first
     end
 
-    def matching_version_test
-      proc do |scenario|
-        scenario.respond_to?(:target_version) && scenario.target_version == @version
-      end
-    end
-
     def run
-      self.class.current_target_version = @version
       PHASES.each do |phase|
         return run_rollback if quit?
 
@@ -73,14 +39,6 @@ module ForemanMaintain
       end
       unless quit?
         finish_upgrade
-      end
-    ensure
-      update_current_target_version
-    end
-
-    def update_current_target_version
-      if phase == :pre_upgrade_checks || @finished
-        UpgradeRunner.clear_current_target_version
       end
     end
 
@@ -100,7 +58,7 @@ module ForemanMaintain
     end
 
     def storage
-      ForemanMaintain.storage("upgrade_#{version}")
+      ForemanMaintain.storage("upgrade")
     end
 
     # serializes the state of the run to storage

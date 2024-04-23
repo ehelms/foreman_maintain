@@ -162,7 +162,7 @@ module ForemanMaintain
     end
 
     def upgrade_in_progress
-      storage[:upgrade_target_version]
+      storage[:upgrade]
     end
 
     def pkg_and_cmd_name

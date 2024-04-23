@@ -9,10 +9,6 @@ module Scenarios::Katello_Nightly
         instance_eval(&block)
       end
     end
-
-    def target_version
-      'nightly'
-    end
   end
 
   class PreUpgradeCheck < Abstract
